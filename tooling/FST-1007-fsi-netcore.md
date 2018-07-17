@@ -1,4 +1,4 @@
-# F# RFC FST-1027 - FSI Reference Model and extending `#r`
+# F# RFC FST-1027 - FSI in a .NET Core world
 
 * [x] Approved in principle
 * [ ] [FSLang Suggestion](https://github.com/fsharp/fslang-suggestions/issues/542)
@@ -8,21 +8,53 @@
 # Summary
 [summary]: #summary
 
-The following extensions to `#r` are proposed:
+This RFC proposes the following:
 
-a) built-in:
+### Enabling FSI from the .NET CLI
 
-* `#r "project: <project-name>"`
-* `#r "impl: <path-to-implementation-assembly>"`
-* `#r "ref: <path-to-reference-assembly>"`
+F# Interactive is enabled on the .NET CLI as `dotnet fsi` with appropriate options detailed further in this document.
 
-b) via .dll extension (see Handler resolution);
+### Add a `/compilertools` switch to enable FSI extensibility
 
-* `#r "[dependency manager]: <dependency manager command>"` like
-   * `#r "paket: <paket command>"`
-   * `#r "nuget: <package-name>, <package-version>"`
+This switch for the compiler and FSI allows you to supply a compiler extension, such as a package manager, or a type provider, at the command line.
 
-This extends the "language" of `#r` to support implementation and reference assemblies, NuGet packages, Paket dependencies, and potentially more.
+### Make `#r` pluggable in the F# compiler and provide some extensions
+
+A pluggable `#r` allows you to specify a string corresponding to a tool or action that the compiler can invoke.
+
+The following extensions to `#r` are proposed as a part of this:
+
+* `#r "[dependency manager]:<dependency manager command>"`
+   * `#r "nuget:<package-name>,<package-version>"` is built-in.
+* `#r "project:<project-name>"`
+
+That is, "referencing a package" and "referencing a project" will be default supported mechanisms for `#r` in F# Interactive.
+
+This extends the "language" of `#r`, based on the `/compilertools:<toolpath>` mechanism that specifies, at build time, an extension `.dll` that implements the `#r` functionality.
+
+### Ensure the desktop `fsi.exe` supports it all
+
+In addition to enabling .NET SDK F# interace, these mechanisms (and additional command-line options) will work for the desktop `fsi.exe`.
+
+### Enable sending a `.dll` to fsi in Visual Studio for .NET SDK projects
+
+Bring .NET SDK projects up to parity with legacy F# projects and offer the right-click menu item to send a referenced `.dll` to F# Interactive.
+
+### Enable sending a project to fsi in Visual Studio
+
+Implement a right-click menu item on F# projects (of any flavor) that will send a reference to that project to F# interactive.
+
+### Fully-defined matrix of capabilities for F# scripting in Visual Studio
+
+F# scripting is cross-cutting across project flavors, runtimes, and target frameworks. There are certain combinations of things that work, and certain combinations of things that simply cannot work.
+
+### Template for building NuGet packages with the .NET CLI
+
+??? TODO define better
+
+### Enable the .NET CLI to be activated from within Visual Studio
+
+To run F# scripts in the context of .NET Core for Visual Studio, the .NET CLI will be capable of being activated do that `dotnet fsi` can be used to execute those scripts.
 
 # Motivation
 [motivation]: #motivation
@@ -34,6 +66,43 @@ Motivation for this change is twofold:
 
 # Detailed design
 [design]: #detailed-design
+
+## Enabling FSI from the .NET CLI
+
+The following options are available, given as if invoked from the command line:
+```
+$ dotnet fsi -h
+Usage: dotnet fsi [options]
+
+-h, --help                       Show help information
+-f, --framework <FRAMEWORK>      Run fsi against a supplied target framework
+--no-restore                     Do not restore the target framework before building
+--force                          Force all dependencies to be resolved even if the last restore was successful
+--use:<file>                     Use the given file on startup as initial input
+--load:<file>                    #load the given file on startup
+--reference:<file>               Reference an assembly (Short form: -r)
+--optimize[+|-]                  Enable optimizations (Short form: -O)
+--deterministic[+|-]             Produce a deterministic assembly (including module version GUID and timestamp)
+--warnaserror[+|-]               Report all warnings as errors
+--warnaserror[+|-]:<warn;...>    Report specific warnings as errors
+--warn:<n>                       Set a warning level (0-5)
+--nowarn:<warn;...>              Disable specific warning messages
+--warnon:<warn;...>              Enable specific warnings that may be off by default
+--consolecolors[+|-]             Output warning and error messages in color
+--checked[+|-]                   Generate overflow checks
+--define:<string>                Define conditional compilation symbols (Short form: -d)
+--mlcompatibility                Ignore ML compatibility warnings
+--nologo                         Suppress compiler copyright message
+--codepage:<n>                   Specify the codepage used to read source files
+--utf8output                     Output messages in UTF-8 encoding
+--preferreduilang:<string>       Specify the preferred output language culture name (e.g. es-ES, ja-JP)
+--fullpaths                      Output messages with fully qualified paths
+--lib:<dir;...>                  Specify a directory for the include path which is used to resolve source files and assemblies (Short form: -I)
+--simpleresolution               Resolve assembly references using directory-based rules rather than MSBuild resolution
+--exec                           Exit fsi after loading the files or running the .fsx script given on the command line
+--quiet                          Suppress fsi writing to stdout
+--readline[+|-]                  Support TAB completion in console (on by default)
+```
 
 Supporting this design requires significant changes in how FSI references assemblies.  As stated above, .NET Core (and .NET Standard) introduces a new model by which assemblies are used and laid out on disk.  FSI cannot assume everything will be in the same place as it is in a .NET Framework world.  Furthermore, when interactive with .NET Standard-based things, code is compiled against *Reference Assemblies* and ran against *Implementation Assemblies*.
 
